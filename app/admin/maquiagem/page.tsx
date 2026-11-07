@@ -28,7 +28,7 @@ export default async function MaquiagemAgendaPage() {
         .in("status", ["confirmed", "pending_payment", "completed"])
         .gte("starts_at", since)
         .order("starts_at", { ascending: true }),
-      supabase.from("make_services").select("id, name"),
+      supabase.from("make_services").select("id, name, price_cents"),
       supabase
         .from("make_blocked_dates")
         .select("id, date, all_day, start_time, end_time, reason, kind"),
@@ -39,11 +39,12 @@ export default async function MaquiagemAgendaPage() {
       getYogaClassesSince(since),
     ]);
 
-  const serviceMap = new Map((services ?? []).map((s) => [s.id, s.name]));
+  const serviceMap = new Map((services ?? []).map((s) => [s.id, s]));
   const appts = (appointments ?? []).map((a) => ({
     ...a,
     client_phone: a.client_phone ?? "", // migrados podem não ter telefone
-    serviceName: serviceMap.get(a.service_id) ?? "Maquiagem",
+    serviceName: serviceMap.get(a.service_id)?.name ?? "Maquiagem",
+    servicePriceCents: serviceMap.get(a.service_id)?.price_cents ?? null,
   }));
 
   return (

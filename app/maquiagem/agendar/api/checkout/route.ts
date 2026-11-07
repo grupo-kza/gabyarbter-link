@@ -69,6 +69,24 @@ export async function POST(req: Request) {
     );
   }
 
+  // A exclusion constraint não enxerga encaixes (allow_overlap) nem o histórico
+  // migrado, então o choque com eles é barrado aqui. A constraint segue cobrindo
+  // a corrida entre duas reservas online.
+  const { data: taken, error: takenError } = await admin
+    .from("make_appointments")
+    .select("id")
+    .in("status", ["pending_payment", "confirmed"])
+    .lt("starts_at", endsAt.toISOString())
+    .gt("ends_at", startsAt.toISOString())
+    .limit(1);
+  if (takenError) {
+    console.error("checkout conflict check failed:", takenError.message);
+    return NextResponse.json({ ok: false, error: "insert_failed" }, { status: 500 });
+  }
+  if (taken && taken.length > 0) {
+    return NextResponse.json({ ok: false, error: "slot_taken" }, { status: 409 });
+  }
+
   if (applyVoucher) {
     // um uso por WhatsApp por campanha (reserva cancelada libera)
     const { count } = await admin

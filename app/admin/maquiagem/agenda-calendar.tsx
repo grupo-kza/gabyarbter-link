@@ -26,6 +26,7 @@ type Appt = {
   notes: string | null;
   service_id: string;
   serviceName: string;
+  servicePriceCents: number | null;
   confirmed_at: string | null;
   source: string;
   campaign?: string | null;

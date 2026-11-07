@@ -10,10 +10,19 @@ import {
   declineBooking,
   cancelBooking,
   rescheduleAppointment,
+  updateAppointmentTotal,
 } from "./actions";
-import { Check, Phone, Loader2, AlertCircle, CheckCheck, X, Sparkles, CalendarX, CalendarClock, Save } from "lucide-react";
+import { Check, Phone, Loader2, AlertCircle, CheckCheck, X, Sparkles, CalendarX, CalendarClock, Save, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { timeRangeBR } from "@/lib/make/calendar";
+import { MIN_MANUAL_DURATION_MIN } from "@/lib/make/manual-overlap";
+import { cardPriceCents, centsToBRLInput, parseBRLToCents } from "@/lib/make/pricing";
+import {
+  ConflictPrompt,
+  ScheduleNotice,
+  useSchedulePreview,
+  type ConflictPromptData,
+} from "./schedule-notice";
 
 const TZ = "America/Sao_Paulo";
 
@@ -33,6 +42,7 @@ type AppointmentRow = {
   payment_method: string | null;
   notes: string | null;
   service_id: string;
+  servicePriceCents?: number | null;
   campaign?: string | null;
   discount_cents?: number | null;
 };
@@ -67,6 +77,10 @@ function formatBRL(cents: number): string {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+function durationOf(appt: { starts_at: string; ends_at: string }): number {
+  return Math.round((new Date(appt.ends_at).getTime() - new Date(appt.starts_at).getTime()) / 60_000);
+}
+
 function methodLabel(m: string | null): string {
   switch (m) {
     case "cash": return "Dinheiro";
@@ -91,6 +105,17 @@ export function AppointmentCard({
   const [editingTime, setEditingTime] = useState(false);
   const [editDate, setEditDate] = useState(() => ymdBR(appt.starts_at));
   const [editTime, setEditTime] = useState(() => hmBR(appt.starts_at));
+  const [editDuration, setEditDuration] = useState(() => durationOf(appt));
+  const [conflictPrompt, setConflictPrompt] = useState<ConflictPromptData | null>(null);
+  const [editingValue, setEditingValue] = useState(false);
+  const [valueInput, setValueInput] = useState("");
+  const schedule = useSchedulePreview({
+    dateYmd: editDate,
+    startTime: editTime,
+    durationMin: editDuration,
+    appointmentId: appt.id,
+    enabled: editingTime,
+  });
 
   const totalCents = appt.total_cents ?? appt.amount_cents;
   const depositCents = appt.deposit_cents ?? appt.amount_cents;
@@ -101,6 +126,9 @@ export function AppointmentCard({
   const isCompleted = appt.status === "completed";
   const isRequest = appt.status === "pending_payment"; // pedido aguardando a Gaby confirmar
   const canEditTime = isRequest || appt.status === "confirmed";
+  const canEditValue = canEditTime;
+  const newTotalCents = parseBRLToCents(valueInput);
+  const newRemainingCents = newTotalCents === null ? null : newTotalCents - depositCents;
 
   const phoneDigits = String(appt.client_phone).replace(/\D/g, "");
 
@@ -115,16 +143,50 @@ export function AppointmentCard({
     });
   }
 
-  function submitReschedule(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  function saveTime(options?: { duration?: number; allowOverlap?: boolean }) {
     setError(null);
     startTransition(async () => {
       const res = await rescheduleAppointment({
         appointmentId: appt.id,
         dateYmd: editDate,
         startTime: editTime,
+        durationMin: options?.duration ?? editDuration,
+        allowOverlap: options?.allowOverlap === true,
       });
-      if (res.ok) setEditingTime(false);
+      if (res.ok) {
+        setEditingTime(false);
+        setConflictPrompt(null);
+      } else if ("kind" in res && res.kind === "appointment_conflict") {
+        setConflictPrompt({
+          clientName: res.conflict.clientName,
+          startsAt: res.conflict.startsAt,
+          endsAt: res.conflict.endsAt,
+          requestedDurationMin: res.requestedDurationMin,
+          suggestedDurationMin: res.suggestedDurationMin,
+        });
+      } else {
+        setConflictPrompt(null);
+        setError(res.error);
+      }
+    });
+  }
+
+  function openValueEditor() {
+    setValueInput(centsToBRLInput(totalCents));
+    setError(null);
+    setEditingValue((v) => !v);
+  }
+
+  function saveValue(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    if (newTotalCents === null) {
+      setError("Informe o valor em reais, por exemplo 250,00.");
+      return;
+    }
+    startTransition(async () => {
+      const res = await updateAppointmentTotal({ appointmentId: appt.id, totalCents: newTotalCents });
+      if (res.ok) setEditingValue(false);
       else setError(res.error);
     });
   }
@@ -236,7 +298,65 @@ export function AppointmentCard({
         {remainingCents === 0 && totalCents > 0 && (
           <p className="text-xs text-ink-soft mt-1">Pago integralmente ✓</p>
         )}
+        {canEditValue && (
+          <button
+            type="button"
+            onClick={openValueEditor}
+            disabled={pending}
+            className="mt-2 inline-flex items-center gap-1.5 min-h-9 text-sm font-medium text-sage-700 hover:text-sage-900 transition disabled:opacity-50"
+          >
+            <Pencil className="size-3.5" /> Alterar valor
+          </button>
+        )}
       </div>
+
+      {editingValue && (
+        <form onSubmit={saveValue} className="mt-3 rounded-[0.9rem] bg-cream-soft hairline p-3 space-y-3">
+          {finalPaid ? (
+            <p className="text-sm text-ink-soft">
+              O pagamento já foi marcado. Desfaça o pagamento para mudar o valor.
+            </p>
+          ) : (
+            <>
+              <label className="block">
+                <span className="block text-xs font-medium text-ink-soft mb-1">Novo valor do atendimento (R$)</span>
+                <input
+                  value={valueInput}
+                  onChange={(e) => setValueInput(e.target.value)}
+                  inputMode="decimal"
+                  required
+                  className="w-full rounded-xl bg-paper hairline px-3 py-2 text-base text-ink outline-none focus:ring-2 focus:ring-sage-100"
+                />
+              </label>
+              <div className="space-y-1 text-xs text-ink-soft">
+                {appt.servicePriceCents != null && (
+                  <p>Valor da tabela: {formatBRL(appt.servicePriceCents)}. A tabela não muda.</p>
+                )}
+                {depositCents > 0 && (
+                  <p>A entrada de {formatBRL(depositCents)} continua paga e não pode ser maior que o novo valor.</p>
+                )}
+                {newRemainingCents !== null && newRemainingCents >= 0 && (
+                  <p className="text-ink">
+                    {depositCents > 0 ? "Restante" : "A receber no dia"}: {formatBRL(newRemainingCents)} no dinheiro
+                    ou {formatBRL(cardPriceCents(newRemainingCents))} no PIX e no cartão.
+                  </p>
+                )}
+                {!isRequest && <p>A cliente não recebe aviso automático dessa mudança.</p>}
+              </div>
+            </>
+          )}
+          <div className="flex flex-wrap gap-2">
+            {!finalPaid && (
+              <ActionButton type="submit" pending={pending} tone="primary">
+                <Save className="size-4" /> Salvar valor
+              </ActionButton>
+            )}
+            <ActionButton onClick={() => setEditingValue(false)} pending={pending} tone="ghost">
+              Voltar
+            </ActionButton>
+          </div>
+        </form>
+      )}
 
       {appt.notes && (
         <p className="mt-3 text-sm text-ink-soft italic">&ldquo;{appt.notes}&rdquo;</p>
@@ -244,7 +364,10 @@ export function AppointmentCard({
 
       {editingTime && (
         <form
-          onSubmit={submitReschedule}
+          onSubmit={(e) => {
+            e.preventDefault();
+            saveTime();
+          }}
           className="mt-3 rounded-[0.9rem] bg-cream-soft hairline p-3 space-y-3"
         >
           <div className="grid grid-cols-2 gap-2">
@@ -253,7 +376,10 @@ export function AppointmentCard({
               <input
                 type="date"
                 value={editDate}
-                onChange={(e) => setEditDate(e.target.value)}
+                onChange={(e) => {
+                  setEditDate(e.target.value);
+                  setConflictPrompt(null);
+                }}
                 required
                 className="w-full rounded-xl bg-paper hairline px-3 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-sage-100"
               />
@@ -263,14 +389,45 @@ export function AppointmentCard({
               <input
                 type="time"
                 value={editTime}
-                onChange={(e) => setEditTime(e.target.value)}
+                onChange={(e) => {
+                  setEditTime(e.target.value);
+                  setConflictPrompt(null);
+                }}
                 required
                 className="w-full rounded-xl bg-paper hairline px-3 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-sage-100"
               />
             </label>
           </div>
+          <label className="block">
+            <span className="block text-xs font-medium text-ink-soft mb-1">Duração (min)</span>
+            <input
+              type="number"
+              min={MIN_MANUAL_DURATION_MIN}
+              step={5}
+              value={editDuration}
+              onChange={(e) => {
+                setEditDuration(Number(e.target.value));
+                setConflictPrompt(null);
+              }}
+              required
+              className="w-full rounded-xl bg-paper hairline px-3 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-sage-100"
+            />
+          </label>
+          <ScheduleNotice {...schedule} />
+          {conflictPrompt && (
+            <ConflictPrompt
+              prompt={conflictPrompt}
+              pending={pending}
+              onUseSuggested={(suggested) => {
+                setEditDuration(suggested);
+                saveTime({ duration: suggested });
+              }}
+              onOverlap={() => saveTime({ allowOverlap: true })}
+              onBack={() => setConflictPrompt(null)}
+            />
+          )}
           <div className="flex flex-wrap gap-2">
-            <ActionButton type="submit" pending={pending} tone="primary">
+            <ActionButton type="submit" pending={pending || schedule.loading} tone="primary">
               <Save className="size-4" /> Salvar horário
             </ActionButton>
             <ActionButton onClick={() => setEditingTime(false)} pending={pending} tone="ghost">

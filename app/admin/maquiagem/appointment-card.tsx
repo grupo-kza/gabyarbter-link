@@ -15,7 +15,7 @@ import {
 import { Check, Phone, Loader2, AlertCircle, CheckCheck, X, Sparkles, CalendarX, CalendarClock, Save, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { timeRangeBR } from "@/lib/make/calendar";
-import { MIN_MANUAL_DURATION_MIN } from "@/lib/make/manual-overlap";
+import { MAX_MANUAL_DURATION_MIN, MIN_MANUAL_DURATION_MIN } from "@/lib/make/manual-overlap";
 import { cardPriceCents, centsToBRLInput, parseBRLToCents } from "@/lib/make/pricing";
 import {
   ConflictPrompt,
@@ -126,7 +126,9 @@ export function AppointmentCard({
   const isCompleted = appt.status === "completed";
   const isRequest = appt.status === "pending_payment"; // pedido aguardando a Gaby confirmar
   const canEditTime = isRequest || appt.status === "confirmed";
-  const canEditValue = canEditTime;
+  const voucherStillApplies =
+    appt.servicePriceCents == null ||
+    totalCents === appt.servicePriceCents - (appt.discount_cents ?? 0);
   const newTotalCents = parseBRLToCents(valueInput);
   const newRemainingCents = newTotalCents === null ? null : newTotalCents - depositCents;
 
@@ -239,7 +241,7 @@ export function AppointmentCard({
           {appt.campaign && (
             <p className="mt-1 inline-flex items-center rounded-full bg-sand/60 text-sage-700 text-[11px] font-medium px-2 py-0.5">
               Voucher {appt.campaign}
-              {appt.discount_cents ? ` · −${formatBRL(appt.discount_cents)}` : ""}
+              {appt.discount_cents && voucherStillApplies ? ` · −${formatBRL(appt.discount_cents)}` : ""}
             </p>
           )}
         </div>
@@ -298,7 +300,7 @@ export function AppointmentCard({
         {remainingCents === 0 && totalCents > 0 && (
           <p className="text-xs text-ink-soft mt-1">Pago integralmente ✓</p>
         )}
-        {canEditValue && (
+        {canEditTime && (
           <button
             type="button"
             onClick={openValueEditor}
@@ -335,7 +337,8 @@ export function AppointmentCard({
                 {depositCents > 0 && (
                   <p>A entrada de {formatBRL(depositCents)} continua paga e não pode ser maior que o novo valor.</p>
                 )}
-                {newRemainingCents !== null && newRemainingCents >= 0 && (
+                {newRemainingCents === 0 && <p className="text-ink">Nada a receber no dia.</p>}
+                {newRemainingCents !== null && newRemainingCents > 0 && (
                   <p className="text-ink">
                     {depositCents > 0 ? "Restante" : "A receber no dia"}: {formatBRL(newRemainingCents)} no dinheiro
                     ou {formatBRL(cardPriceCents(newRemainingCents))} no PIX e no cartão.
@@ -403,7 +406,8 @@ export function AppointmentCard({
             <input
               type="number"
               min={MIN_MANUAL_DURATION_MIN}
-              step={5}
+              max={MAX_MANUAL_DURATION_MIN}
+              step={1}
               value={editDuration}
               onChange={(e) => {
                 setEditDuration(Number(e.target.value));
@@ -430,7 +434,14 @@ export function AppointmentCard({
             <ActionButton type="submit" pending={pending || schedule.loading} tone="primary">
               <Save className="size-4" /> Salvar horário
             </ActionButton>
-            <ActionButton onClick={() => setEditingTime(false)} pending={pending} tone="ghost">
+            <ActionButton
+              onClick={() => {
+                setEditingTime(false);
+                setConflictPrompt(null);
+              }}
+              pending={pending}
+              tone="ghost"
+            >
               Voltar
             </ActionButton>
           </div>

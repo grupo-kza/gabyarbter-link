@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2, AlertCircle, Save, CalendarDays, Lock, PartyPopper, StretchHorizontal, Users } from "lucide-react";
 import { cn, formatPhoneBR } from "@/lib/utils";
+import { MAX_MANUAL_DURATION_MIN, MIN_MANUAL_DURATION_MIN } from "@/lib/make/manual-overlap";
 import { centsToBRLInput, parseBRLToCents } from "@/lib/make/pricing";
 import { createManualAppointment, createBlock, searchMakeClients } from "../actions";
 import {
@@ -311,8 +312,9 @@ function ApptForm({ services, onDone }: { services: Service[]; onDone: () => voi
             <div className="flex items-center gap-2">
               <input
                 type="number"
-                min={15}
-                step={5}
+                min={MIN_MANUAL_DURATION_MIN}
+                max={MAX_MANUAL_DURATION_MIN}
+                step={1}
                 value={effectiveDuration}
                 onChange={(e) => setDurationMin(Number(e.target.value))}
                 className={inputCls}

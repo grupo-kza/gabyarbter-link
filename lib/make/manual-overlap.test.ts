@@ -146,3 +146,18 @@ test("handles an empty day", () => {
 
   assert.deepEqual(gaps, { before: null, after: null, conflicts: [] });
 });
+
+test("rejects durations above the 12 hour limit", () => {
+  const result = resolveManualAppointmentWindow({
+    startsAt: new Date("2026-07-18T15:30:00.000Z"),
+    durationMin: 721,
+    appointmentConflict: null,
+    allowOverlap: false,
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    kind: "invalid_duration",
+    error: "O atendimento pode ter no máximo 720 minutos.",
+  });
+});

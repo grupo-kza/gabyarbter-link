@@ -1,4 +1,6 @@
 export const MIN_MANUAL_DURATION_MIN = 15;
+/** Teto de 12 h: pega erro de digitação que ocuparia dias da agenda. */
+export const MAX_MANUAL_DURATION_MIN = 720;
 
 export type AppointmentConflict = {
   id: string;
@@ -84,6 +86,13 @@ export function resolveManualAppointmentWindow(input: {
       ok: false,
       kind: "invalid_duration",
       error: `O atendimento precisa ter pelo menos ${MIN_MANUAL_DURATION_MIN} minutos.`,
+    };
+  }
+  if (input.durationMin > MAX_MANUAL_DURATION_MIN) {
+    return {
+      ok: false,
+      kind: "invalid_duration",
+      error: `O atendimento pode ter no máximo ${MAX_MANUAL_DURATION_MIN} minutos.`,
     };
   }
 

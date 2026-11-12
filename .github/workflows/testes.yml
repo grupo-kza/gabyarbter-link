@@ -1,0 +1,105 @@
+name: Testes
+
+# Teste automático (decisão 87d1770e, onda 2): build do Next e fumaça com Playwright (o repositório não tem teste escrito).
+# - Roda em todo PR para a main e em todo push na main.
+# - Sem segredo nenhum: só lê o repositório. PR de fork não roda (o Portão final fica vermelho de propósito).
+# - Repositório PÚBLICO: roda no runner hospedado do GitHub (ubuntu-latest), sem custo e sem expor o runner da casa a PR de fork.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: testes-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  testes:
+    name: Testes
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: chave-de-teste-sem-valor
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Instalar dependências
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Build do Next
+        run: npm run build
+      - name: Instalar Playwright (Chromium)
+        run: |
+          mkdir -p "$RUNNER_TEMP/pw"
+          cd "$RUNNER_TEMP/pw"
+          npm init -y >/dev/null
+          npm install playwright@1.52.0 --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Fumaça com Playwright
+        env:
+          BASE_URL: http://127.0.0.1:4173
+          SMOKE_PATHS: "/"
+          SMOKE_EXPECT: ""
+        run: |
+          cat > "$RUNNER_TEMP/pw/smoke.cjs" <<'SMOKE_EOF'
+          const { chromium } = require('playwright');
+          const base = process.env.BASE_URL;
+          const paths = (process.env.SMOKE_PATHS || '/').split(',');
+          const esperado = (process.env.SMOKE_EXPECT || '').toLowerCase();
+          (async () => {
+            const browser = await chromium.launch();
+            let falhas = 0;
+            for (const p of paths) {
+              const page = await browser.newPage();
+              const problemas = [];
+              page.on('pageerror', (e) => problemas.push('erro de JS: ' + e.message));
+              page.on('response', (r) => { if (r.url().startsWith(base) && r.status() >= 400) problemas.push(r.status() + ' ' + r.url()); });
+              const resp = await page.goto(base + p, { waitUntil: 'load', timeout: 30000 });
+              if (!resp || resp.status() !== 200) problemas.push('status ' + (resp && resp.status()));
+              const titulo = (await page.title()).trim();
+              if (!titulo) problemas.push('sem título');
+              const texto = ((await page.locator('body').innerText()) || '').trim();
+              if (texto.length < 50) problemas.push('página quase vazia');
+              if (esperado && !(titulo + ' ' + texto).toLowerCase().includes(esperado)) problemas.push('não achei "' + esperado + '" na página');
+              console.log((problemas.length ? 'FALHA ' : 'ok    ') + p + ' | ' + titulo);
+              problemas.forEach((x) => console.log('   - ' + x));
+              if (problemas.length) falhas++;
+              await page.close();
+            }
+            await browser.close();
+            if (falhas) { console.error(falhas + ' página(s) com problema'); process.exit(1); }
+          })().catch((e) => { console.error(e); process.exit(1); });
+          SMOKE_EOF
+          npm run start -- --hostname 127.0.0.1 --port 4173 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+          for i in $(seq 1 60); do curl -fsS -o /dev/null "$BASE_URL/" 2>/dev/null && break || sleep 1; done
+          NODE_PATH="$RUNNER_TEMP/pw/node_modules" node "$RUNNER_TEMP/pw/smoke.cjs"
+      - name: Árvore limpa (nada gerado sem commit)
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then git status --short; echo "os testes deixaram arquivo na árvore" >&2; exit 1; fi
+  # Check final único: falha se o job acima não deu sucesso (pulado e cancelado contam como falha).
+  portao-final:
+    name: Portão final
+    if: always()
+    needs: [testes]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Resultado
+        env:
+          RESULTADO: ${{ needs.testes.result }}
+        run: |
+          echo "testes: $RESULTADO"
+          [ "$RESULTADO" = "success" ]

@@ -3,7 +3,7 @@ name: Testes
 # Teste automático (decisão 87d1770e, onda 2): build do Next e fumaça com Playwright (o repositório não tem teste escrito).
 # - Roda em todo PR para a main e em todo push na main.
 # - Sem segredo nenhum: só lê o repositório. PR de fork não roda (o Portão final fica vermelho de propósito).
-# - Roda no runner da casa (self-hosted, kza-ci, build-lax1), nunca em runner pago do GitHub.
+# - Repositório PÚBLICO: roda no runner hospedado do GitHub (ubuntu-latest), sem custo e sem expor o runner da casa a PR de fork.
 on:
   pull_request:
     branches: [main]
@@ -21,7 +21,7 @@ jobs:
   testes:
     name: Testes
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, kza-ci]
+    runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: "1"
@@ -94,7 +94,7 @@ jobs:
     name: Portão final
     if: always()
     needs: [testes]
-    runs-on: [self-hosted, kza-ci]
+    runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
       - name: Resultado

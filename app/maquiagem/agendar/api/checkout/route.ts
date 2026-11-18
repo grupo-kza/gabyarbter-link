@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getActiveMakeVoucher, getMakeServiceBySlug, getMakeSettings } from "@/lib/make/queries";
-import { voucherDiscountCents } from "@/lib/make/pricing";
+import { priceForDate, voucherDiscountCents } from "@/lib/make/pricing";
+import { formatYmdBR } from "@/lib/make/slots";
 import { notifyGabyNewBooking } from "@/lib/make/notify";
 import { toE164 } from "@/lib/make/phone";
 
@@ -57,7 +58,9 @@ export async function POST(req: Request) {
   // reserva segue normal, sem desconto e sem vínculo.
   const voucher = body.campaign ? await getActiveMakeVoucher(body.campaign) : null;
   const applyVoucher = voucher && voucher.serviceSlug === service.slug ? voucher : null;
-  const discountCents = applyVoucher ? voucherDiscountCents(service.price_cents, applyVoucher.discountPct) : 0;
+  // Preço do dia (domingo e feriado têm valor próprio), sempre calculado aqui.
+  const baseCents = priceForDate(service, formatYmdBR(startsAt));
+  const discountCents = applyVoucher ? voucherDiscountCents(baseCents, applyVoucher.discountPct) : 0;
 
   let admin;
   try {
@@ -110,7 +113,7 @@ export async function POST(req: Request) {
       starts_at: startsAt.toISOString(),
       ends_at: endsAt.toISOString(),
       status: "pending_payment", // aguardando a Gaby confirmar
-      total_cents: service.price_cents - discountCents,
+      total_cents: baseCents - discountCents,
       deposit_cents: 0, // nada pago online — recebe tudo no dia
       amount_cents: 0,
       payment_method: null,

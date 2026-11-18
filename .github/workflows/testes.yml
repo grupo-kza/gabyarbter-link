@@ -21,7 +21,8 @@ jobs:
   testes:
     name: Testes
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
+    # Fixo em 24.04: no ubuntu-latest (26.04) o Playwright 1.52 não instala o Chromium.
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: "1"
@@ -37,6 +38,8 @@ jobs:
           cache: npm
       - name: Instalar dependências
         run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Testes de unidade
+        run: node --test lib/make/*.test.ts
       - name: Build do Next
         run: npm run build
       - name: Instalar Playwright (Chromium)

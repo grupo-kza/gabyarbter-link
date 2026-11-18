@@ -8,7 +8,7 @@ export default async function NovoPage() {
 
   const { data: services } = await supabase
     .from("make_services")
-    .select("id, name, price_cents, duration_min")
+    .select("id, slug, name, price_cents, duration_min")
     .eq("active", true)
     .order("sort_order", { ascending: true });
 

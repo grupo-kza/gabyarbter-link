@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { MakeService, MakeSettings } from "@/lib/make/types";
 import { formatBRL } from "@/lib/utils";
+import { cardPriceCents, specialDayCashCents } from "@/lib/make/pricing";
 import { formatYmdBR, weekdayInBR } from "@/lib/make/slots";
 
 type DayAvailability = "open" | "closed" | "blocked" | "past";
@@ -78,6 +79,8 @@ export function DateStep({
       cancelled = true;
     };
   }, [monthAnchor, service.slug]);
+
+  const specialCents = specialDayCashCents(service);
 
   const canPrev = monthAnchor.getTime() > new Date(today.getFullYear(), today.getMonth(), 1).getTime();
   const maxMonth = new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
@@ -175,6 +178,13 @@ export function DateStep({
           <p className="mt-3 text-center text-xs text-ink-soft">Verificando horários…</p>
         )}
       </div>
+
+      {specialCents !== null && (
+        <p className="mt-4 text-sm text-ink-soft text-center">
+          Domingo e feriado: {formatBRL(specialCents)} no dinheiro ·{" "}
+          {formatBRL(cardPriceCents(specialCents))} no pix/cartão. Domingo, só até as 11h.
+        </p>
+      )}
 
       <p className="mt-4 text-xs text-ink-soft text-center">
         Dá pra marcar a partir de {settings.min_advance_hours}h de antecedência — e com toda a

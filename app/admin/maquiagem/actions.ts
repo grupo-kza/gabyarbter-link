@@ -11,7 +11,7 @@ import {
   type AppointmentConflict,
   type ScheduleGaps,
 } from "@/lib/make/manual-overlap";
-import { checkManualTotal } from "@/lib/make/pricing";
+import { checkManualTotal, priceForDate } from "@/lib/make/pricing";
 
 type PaymentMethod = "cash" | "pix" | "credit_card";
 type ManualEventKind = "block" | "commitment" | "party" | "yoga";
@@ -367,7 +367,7 @@ export async function createManualAppointment(input: {
 
   const { data: service, error: svcErr } = await supabase
     .from("make_services")
-    .select("id, price_cents, duration_min")
+    .select("id, slug, price_cents, duration_min")
     .eq("id", input.serviceId)
     .single();
   if (svcErr || !service) return { ok: false, error: "Serviço não encontrado." };
@@ -375,7 +375,8 @@ export async function createManualAppointment(input: {
   const startsAt = combineDateTime(input.dateYmd, input.startTime);
   if (isNaN(startsAt.getTime())) return { ok: false, error: "Data/horário inválidos." };
   const durationMin = input.durationMin ?? Number(service.duration_min);
-  const totalCents = input.totalCents ?? Number(service.price_cents);
+  const totalCents =
+    input.totalCents ?? priceForDate({ slug: service.slug, price_cents: Number(service.price_cents) }, input.dateYmd);
   const totalCheck = checkManualTotal({ totalCents, depositCents: 0, finalPaid: false });
   if (!totalCheck.ok) return { ok: false, error: totalCheck.error };
 

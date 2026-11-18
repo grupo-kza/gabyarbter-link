@@ -8,7 +8,7 @@ import { ServiceStep } from "./steps/service-step";
 import { DateStep } from "./steps/date-step";
 import { TimeStep } from "./steps/time-step";
 import { DataStep } from "./steps/data-step";
-import { priceWithVoucher, type MakeVoucher } from "@/lib/make/pricing";
+import { priceForDate, priceWithVoucher, type MakeVoucher } from "@/lib/make/pricing";
 
 type Step = 1 | 2 | 3 | 4;
 
@@ -39,10 +39,6 @@ export function AgendarClient({
     () => rawServices.map((s) => ({ ...s, price_cents: priceWithVoucher(s, voucher) })),
     [rawServices, voucher],
   );
-  const originalPrice = useMemo(
-    () => new Map(rawServices.map((s) => [s.id, s.price_cents])),
-    [rawServices],
-  );
   const voucherService = voucher ? rawServices.find((s) => s.slug === voucher.serviceSlug) : null;
 
   const preselected = preselectedSlug
@@ -57,6 +53,15 @@ export function AgendarClient({
     clientName: "",
     clientPhone: "",
   });
+
+  // Depois de escolher o dia, o preço é o daquele dia (domingo e feriado têm
+  // valor próprio). Sem dia ainda, vale o da tabela.
+  const rawSelected = state.service ? rawServices.find((s) => s.id === state.service!.id) ?? null : null;
+  const dayOriginalCents = rawSelected ? priceForDate(rawSelected, state.date) : 0;
+  const pricedService: MakeService | null =
+    state.service && rawSelected
+      ? { ...state.service, price_cents: priceWithVoucher({ slug: rawSelected.slug, price_cents: dayOriginalCents }, voucher) }
+      : state.service;
 
   const update = useCallback((patch: Partial<AgendarState>) => {
     setState((s) => ({ ...s, ...patch }));
@@ -111,9 +116,9 @@ export function AgendarClient({
           />
         )}
 
-        {step === 3 && state.service && state.date && (
+        {step === 3 && pricedService && state.date && (
           <TimeStep
-            service={state.service}
+            service={pricedService}
             settings={settings}
             dateYmd={state.date}
             selectedSlot={state.slot}
@@ -125,11 +130,11 @@ export function AgendarClient({
           />
         )}
 
-        {step === 4 && state.service && state.slot && (
+        {step === 4 && pricedService && state.slot && (
           <DataStep
-            service={state.service}
-            originalPriceCents={originalPrice.get(state.service.id) ?? state.service.price_cents}
-            voucherCode={voucher && voucher.serviceSlug === state.service.slug ? voucher.code : null}
+            service={pricedService}
+            originalPriceCents={dayOriginalCents || pricedService.price_cents}
+            voucherCode={voucher && voucher.serviceSlug === pricedService.slug ? voucher.code : null}
             slot={state.slot}
             state={state}
             update={update}
@@ -138,7 +143,7 @@ export function AgendarClient({
         )}
       </div>
 
-      {state.service && step > 1 && <ServicePill service={state.service} step={step} />}
+      {pricedService && step > 1 && <ServicePill service={pricedService} step={step} />}
     </main>
   );
 }

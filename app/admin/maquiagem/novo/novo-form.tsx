@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Loader2, AlertCircle, Save, CalendarDays, Lock, PartyPopper, StretchHorizontal, Users } from "lucide-react";
 import { cn, formatPhoneBR } from "@/lib/utils";
 import { MAX_MANUAL_DURATION_MIN, MIN_MANUAL_DURATION_MIN } from "@/lib/make/manual-overlap";
-import { centsToBRLInput, parseBRLToCents } from "@/lib/make/pricing";
+import { centsToBRLInput, parseBRLToCents, priceForDate } from "@/lib/make/pricing";
 import { createManualAppointment, createBlock, searchMakeClients } from "../actions";
 import {
   ConflictPrompt,
@@ -25,6 +25,7 @@ type ClientMatch = {
 
 type Service = {
   id: string;
+  slug: string;
   name: string;
   price_cents: number;
   duration_min: number;
@@ -147,7 +148,9 @@ function ApptForm({ services, onDone }: { services: Service[]; onDone: () => voi
   const service = services.find((s) => s.id === serviceId) ?? null;
   const effectiveDuration = durationMin ?? service?.duration_min ?? 0;
   const endPreview = effectiveDuration && start ? addMinutes(start, effectiveDuration) : null;
-  const priceText = priceInput ?? (service ? centsToBRLInput(service.price_cents) : "");
+  // Domingo e feriado têm valor próprio; o que a Gaby digitar continua valendo.
+  const tableCents = service ? priceForDate(service, date) : 0;
+  const priceText = priceInput ?? (service ? centsToBRLInput(tableCents) : "");
   const schedule = useSchedulePreview({ dateYmd: date, startTime: start, durationMin: effectiveDuration });
 
   function submit(options?: { duration?: number; allowOverlap?: boolean }) {
@@ -276,7 +279,7 @@ function ApptForm({ services, onDone }: { services: Service[]; onDone: () => voi
           aria-describedby="valor-ajuda"
         />
         <span id="valor-ajuda" className="block mt-1 text-xs text-ink-soft">
-          {service ? `Valor da tabela: ${formatBRL(service.price_cents)}. Mudar aqui vale só para este atendimento.` : ""}
+          {service ? `Valor da tabela${tableCents !== service.price_cents ? " (domingo ou feriado)" : ""}: ${formatBRL(tableCents)}. Mudar aqui vale só para este atendimento.` : ""}
         </span>
       </Field>
 

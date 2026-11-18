@@ -1,8 +1,31 @@
+import { isSundayOrHoliday } from "./holidays.ts";
+
 // Pagamento é sempre no dia, com a Gaby. O preço-base (price_cents) é o valor
 // em DINHEIRO; PIX e cartão têm um acréscimo fixo (custo da maquininha/PIX).
 // Esta é a fonte única do acréscimo — mudou aqui, muda no app inteiro.
 // (As cópias estáticas da landing e do JSON-LD espelham este valor à mão.)
 export const CARD_SURCHARGE_CENTS = 1000; // R$ 10,00
+
+// Domingo e feriado (André, 18/11/2026): Express e Blindada custam R$ 230 em
+// dinheiro e R$ 240 no PIX/cartão. Vale para agendamento novo; o que já está
+// marcado guarda o total_cents de quando foi feito. Landing e JSON-LD espelham.
+export const SPECIAL_DAY_CASH_CENTS = 23_000; // R$ 230,00
+export const SPECIAL_DAY_SERVICE_SLUGS: readonly string[] = ["express", "blindada"];
+
+/** Preço em dinheiro de domingo e feriado do serviço, ou null se não muda. */
+export function specialDayCashCents(service: { slug: string }): number | null {
+  return SPECIAL_DAY_SERVICE_SLUGS.includes(service.slug) ? SPECIAL_DAY_CASH_CENTS : null;
+}
+
+/** Preço em dinheiro do serviço naquela data ('YYYY-MM-DD', dia local BR). */
+export function priceForDate(
+  service: { slug: string; price_cents: number },
+  dateYmd: string | null | undefined,
+): number {
+  const special = specialDayCashCents(service);
+  if (!dateYmd || special === null) return service.price_cents;
+  return isSundayOrHoliday(dateYmd) ? special : service.price_cents;
+}
 
 /** Valor no PIX/cartão a partir do preço em dinheiro (em centavos). */
 export function cardPriceCents(cashCents: number): number {

@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { MakeService } from "@/lib/make/types";
 import { formatBRL } from "@/lib/utils";
-import { cardPriceCents } from "@/lib/make/pricing";
+import { cardPriceCents, SPECIAL_DAY_CASH_CENTS, SPECIAL_DAY_SERVICE_SLUGS } from "@/lib/make/pricing";
 
 const WHATSAPP_URL = "https://wa.me/message/E6RZKY2Y72LEB1";
 
@@ -101,6 +101,14 @@ export function ServiceStep({
           );
         })}
       </div>
+
+      {services.some((s) => SPECIAL_DAY_SERVICE_SLUGS.includes(s.slug)) && (
+        <p className="mt-4 rounded-[1.1rem] bg-cream-soft/70 hairline px-4 py-3 text-sm text-ink-soft">
+          <span className="font-medium text-ink">Domingo e feriado:</span>{" "}
+          {formatBRL(SPECIAL_DAY_CASH_CENTS)} no dinheiro · {formatBRL(cardPriceCents(SPECIAL_DAY_CASH_CENTS))} no
+          pix/cartão. Aos domingos, a Gaby atende até as 11h.
+        </p>
+      )}
 
       <div className="mt-6 text-center">
         <Link

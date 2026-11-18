@@ -13,7 +13,7 @@ const INSTAGRAM_URL = "https://www.instagram.com/gabyarbter/";
 export const metadata: Metadata = {
   title: "Maquiagem em Erechim/RS — Gaby Arbter (Express e Blindada)",
   description:
-    "Maquiagem profissional em Erechim/RS. Express R$ 175-185 (~30min) e Blindada R$ 200-210 (~45min). Atendimento sextas e sábados, com agendamento online e pagamento presencial (PIX, dinheiro ou cartão).",
+    "Maquiagem profissional em Erechim/RS. Express R$ 175-185 (~30min) e Blindada R$ 200-210 (~45min); domingo e feriado R$ 230-240. Agendamento online e pagamento presencial (PIX, dinheiro ou cartão).",
   alternates: { canonical: "/maquiagem" },
   keywords: [
     "maquiagem Erechim",
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Maquiagem em Erechim/RS — Gaby Arbter",
     description:
-      "Express R$ 175-185 e Blindada R$ 200-210. Estúdio em Erechim, sextas e sábados. Agendamento online, pagamento presencial.",
+      "Express R$ 175-185 e Blindada R$ 200-210; domingo e feriado R$ 230-240. Estúdio em Erechim. Agendamento online, pagamento presencial.",
     url: "https://gabyarbter.com.br/maquiagem",
     images: [
       {
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Maquiagem em Erechim/RS — Gaby Arbter",
-    description: "Express R$ 175-185 · Blindada R$ 200-210. Em Erechim, sextas e sábados.",
+    description: "Express R$ 175-185 · Blindada R$ 200-210 · domingo e feriado R$ 230-240. Em Erechim.",
     images: ["/maquiagem/hero-makes.jpg"],
   },
 };
@@ -201,6 +201,7 @@ const SERVICES = [
       { label: "Dinheiro", value: "R$ 175" },
       { label: "Pix / cartão", value: "R$ 185" },
     ],
+    specialDay: "Domingo e feriado: R$ 230 no dinheiro · R$ 240 no pix/cartão",
     duration: "30 min",
     highlights: [
       { icon: Sparkle, text: "Foco no realce natural" },
@@ -222,6 +223,7 @@ const SERVICES = [
       { label: "Dinheiro", value: "R$ 200" },
       { label: "Pix / cartão", value: "R$ 210" },
     ],
+    specialDay: "Domingo e feriado: R$ 230 no dinheiro · R$ 240 no pix/cartão",
     duration: "40-45 min",
     highlights: [
       { icon: Drop, text: "À prova d'água, suor e lágrimas" },
@@ -319,6 +321,7 @@ function ServiceCard({ service }: { service: (typeof SERVICES)[number] }) {
             </div>
           ))}
         </div>
+        <p className="mt-2 text-xs text-ink-soft">{service.specialDay}</p>
 
         <p className="mt-5 text-ink-soft leading-relaxed text-[15px] sm:text-base">
           {service.description}

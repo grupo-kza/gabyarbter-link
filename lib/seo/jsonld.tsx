@@ -52,11 +52,11 @@ export const beautySalon = {
   "@id": `${SITE}/maquiagem#business`,
   name: "Gaby Arbter Maquiagem",
   description:
-    "Maquiagem Express e Maquiagem Blindada em Erechim/RS. Atendimento em estúdio, sextas e sábados, com agendamento online e entrada via PIX.",
+    "Maquiagem Express e Maquiagem Blindada em Erechim/RS. Atendimento em estúdio, com agendamento online e pagamento no dia.",
   url: `${SITE}/maquiagem`,
   image: `${SITE}/maquiagem/hero-makes.jpg`,
   telephone: "+5554999936343",
-  priceRange: "R$ 175 - R$ 210",
+  priceRange: "R$ 175 - R$ 240",
   address: {
     "@type": "PostalAddress",
     addressLocality: "Erechim",
@@ -67,9 +67,15 @@ export const beautySalon = {
   openingHoursSpecification: [
     {
       "@type": "OpeningHoursSpecification",
-      dayOfWeek: ["Friday", "Saturday"],
-      opens: "09:00",
-      closes: "18:00",
+      dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+      opens: "06:00",
+      closes: "20:00",
+    },
+    {
+      "@type": "OpeningHoursSpecification",
+      dayOfWeek: "Sunday",
+      opens: "06:00",
+      closes: "11:00",
     },
   ],
   founder: { "@id": `${SITE}/#gaby` },
@@ -84,6 +90,8 @@ export const beautySalon = {
         priceSpecification: [
           { "@type": "PriceSpecification", price: "175.00", priceCurrency: "BRL", description: "Pagamento em dinheiro" },
           { "@type": "PriceSpecification", price: "185.00", priceCurrency: "BRL", description: "Pagamento via PIX ou cartão" },
+          { "@type": "PriceSpecification", price: "230.00", priceCurrency: "BRL", description: "Domingo e feriado, pagamento em dinheiro" },
+          { "@type": "PriceSpecification", price: "240.00", priceCurrency: "BRL", description: "Domingo e feriado, pagamento via PIX ou cartão" },
         ],
         availability: "https://schema.org/InStock",
         itemOffered: {
@@ -101,6 +109,8 @@ export const beautySalon = {
         priceSpecification: [
           { "@type": "PriceSpecification", price: "200.00", priceCurrency: "BRL", description: "Pagamento em dinheiro" },
           { "@type": "PriceSpecification", price: "210.00", priceCurrency: "BRL", description: "Pagamento via PIX ou cartão" },
+          { "@type": "PriceSpecification", price: "230.00", priceCurrency: "BRL", description: "Domingo e feriado, pagamento em dinheiro" },
+          { "@type": "PriceSpecification", price: "240.00", priceCurrency: "BRL", description: "Domingo e feriado, pagamento via PIX ou cartão" },
         ],
         availability: "https://schema.org/InStock",
         itemOffered: {
@@ -211,7 +221,7 @@ export type FaqItem = { q: string; a: string };
 export const maquiagemFaqs: FaqItem[] = [
   {
     q: "Quanto custa uma maquiagem em Erechim com a Gaby?",
-    a: "A Maquiagem Express custa R$ 175 em dinheiro (ou R$ 185 no PIX/cartão) e dura cerca de 30 minutos — ideal pra eventos rápidos. A Maquiagem Blindada custa R$ 200 em dinheiro (ou R$ 210 no PIX/cartão) e dura cerca de 45 minutos, com acabamento HD de longa duração.",
+    a: "A Maquiagem Express custa R$ 175 em dinheiro (ou R$ 185 no PIX/cartão) e dura cerca de 30 minutos — ideal pra eventos rápidos. A Maquiagem Blindada custa R$ 200 em dinheiro (ou R$ 210 no PIX/cartão) e dura cerca de 45 minutos, com acabamento HD de longa duração. Em domingo e feriado, as duas custam R$ 230 em dinheiro (ou R$ 240 no PIX/cartão).",
   },
   {
     q: "Onde fica o estúdio?",
@@ -219,11 +229,11 @@ export const maquiagemFaqs: FaqItem[] = [
   },
   {
     q: "Quais dias da semana atende?",
-    a: "Atendimento às sextas-feiras e sábados. A disponibilidade real de horários aparece em tempo no agendamento online em gabyarbter.com.br/maquiagem.",
+    a: "De segunda a sábado, das 6h às 20h, e aos domingos até as 11h. A disponibilidade real de horários aparece no agendamento online em gabyarbter.com.br/maquiagem.",
   },
   {
     q: "Como funciona o pagamento? Precisa pagar entrada?",
-    a: "Sim. Pra confirmar a agenda você paga 30% do valor como sinal, via PIX ou cartão. O restante é pago presencialmente no dia, em PIX (sem taxa) ou dinheiro.",
+    a: "Não. Você só reserva o horário pelo site e paga tudo no dia, direto com a Gaby, em dinheiro, PIX ou cartão. No PIX e no cartão o valor tem R$ 10 a mais.",
   },
   {
     q: "Faz maquiagem de noiva?",
@@ -231,7 +241,7 @@ export const maquiagemFaqs: FaqItem[] = [
   },
   {
     q: "Como faço pra agendar?",
-    a: "Pelo site gabyarbter.com.br/maquiagem: escolhe o serviço, a data e o horário, paga a entrada via PIX ou cartão e recebe a confirmação por WhatsApp.",
+    a: "Pelo site gabyarbter.com.br/maquiagem: escolhe o serviço, a data e o horário e recebe a confirmação da Gaby por WhatsApp. O pagamento é no dia.",
   },
 ];
 
